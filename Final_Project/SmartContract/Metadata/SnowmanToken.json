@@ -1,0 +1,23 @@
+{
+    "name": "Snowman Soda!",
+    "attributes": [
+        {
+            "trait_type": "Utility",
+            "value": "None :)"
+        },
+        {
+            "trait_type": "Fun",
+            "value": "100%"
+        },
+        {
+            "trait_type": "Ice",
+            "value": "Cold"
+        },
+        {
+            "trait_type": "Freshness",
+            "value": "Refreshing"
+        }
+    ],
+    "image": "https://ipfs.io/ipfs/QmPWXKhu8FC5PMuJSEu1h7pab6gTHKyzseeWer1rxfLsVh",
+    "description": "Soda for Alchemy University Final Project!"
+}

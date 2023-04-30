@@ -160,7 +160,9 @@ export class PersonalListing extends React.Component {
         ownedNFTs: null,
         isApproved: false,
         parsedListings: null,
+        isLoading: false,
       });
+      this.forceUpdate();
     }
   }
 
@@ -400,6 +402,7 @@ export class PersonalListing extends React.Component {
   render() {
     const { parsedListings, ownedNFTs, isApproved, isLoading } = this.state;
     if (isLoading) {
+      console.log("Loading...");
       return (
         <div className="prose p-4">
           <h1>Loading personal listings...</h1>

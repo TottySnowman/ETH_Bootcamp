@@ -14,7 +14,6 @@ import {
   TradingContractAddress,
   NFTContractAddress,
 } from "../../constants/ContractAddresses";
-const web3Provider = new ethers.BrowserProvider(window.ethereum);
 export class PersonalListing extends React.Component {
   constructor() {
     super();
@@ -36,6 +35,7 @@ export class PersonalListing extends React.Component {
       NFTContract: null,
       amountToWithdraw: 0,
       isLoading: true,
+      web3Provider: null,
     };
     this.handleListItemModal = this.handleListItemModal.bind(this);
     this.handleListItem = this.handleListItem.bind(this);
@@ -48,12 +48,19 @@ export class PersonalListing extends React.Component {
     this.handleWithdraw = this.handleWithdraw.bind(this);
     this.handleRevokeAccess = this.handleRevokeAccess.bind(this);
     this.handleAccountsChanged = this.handleAccountsChanged.bind(this);
+    this.resetState = this.resetState.bind(this);
   }
   async componentDidMount() {
     await this.loadPersonalListings();
-    window.ethereum.on("accountsChanged", this.handleAccountsChanged);
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", this.handleAccountsChanged);
+    }
   }
   async handleAccountsChanged() {
+    this.resetState();
+    await this.loadPersonalListings();
+  }
+  resetState() {
     this.setState({
       modalVisible: false,
       modalTitle: "",
@@ -72,88 +79,19 @@ export class PersonalListing extends React.Component {
       NFTContract: null,
       amountToWithdraw: 0,
       isLoading: true,
+      web3Provider: null,
     });
-    await this.loadPersonalListings();
+    this.forceUpdate();
   }
   async loadPersonalListings() {
+    if (!window.ethereum) {
+      this.resetState();
+      this.setState({ isLoading: false });
+      return;
+    }
+    const web3Provider = new ethers.BrowserProvider(window.ethereum);
     const accounts = await web3Provider.send("eth_accounts");
-    if (accounts.length > 0) {
-      const signer = await web3Provider.getSigner();
-      const NFT_Contract = new ethers.Contract(
-        NFTContractAddress,
-        nftABI,
-        signer
-      );
-      const TradingContract = new ethers.Contract(
-        TradingContractAddress,
-        tradingABI,
-        signer
-      );
-      const isApproved = await NFT_Contract.isApprovedForAll(
-        signer.address,
-        TradingContractAddress
-      );
-      if (!isApproved) {
-        this.setState({
-          isLoading: false,
-        });
-        this.forceUpdate();
-        return;
-      }
-      const ownedNFTs = await alchemy.nft.getNftsForOwner(signer.address);
-
-      const amountToWithdraw = await TradingContract.getWithdrawableAmount();
-      this.setState({
-        ownedNFTs: ownedNFTs,
-        isApproved: isApproved,
-        TradingContract: TradingContract,
-        NFTContract: NFT_Contract,
-        amountToWithdraw: amountToWithdraw,
-        isLoading: false,
-      });
-      this.forceUpdate();
-
-      const listedNFTs = await TradingContract.getPersonalListings();
-      if (listedNFTs.length == 0) {
-        return;
-      }
-
-      let parsedListingsContract = listedNFTs.map((listing) => {
-        return {
-          id: Number(listing.id),
-          price: Number(listing.price),
-          nftAddress: listing.nftAddress,
-          tokenID: Number(listing.tokenID),
-          owner: listing.owner,
-          exists: listing.exists,
-        };
-      });
-      parsedListingsContract = parsedListingsContract.filter(
-        (item) => item.exists
-      );
-      let parsedListings = [...parsedListingsContract];
-      await parsedListings.map(async (listedNFT, index) => {
-        const nftMetaData = await alchemy.nft.getNftMetadata(
-          listedNFT.nftAddress,
-          listedNFT.tokenID.toString(),
-          "ERC721"
-        );
-        let nftData = parsedListings[index];
-        nftData.description = nftMetaData.description;
-        nftData.title = nftMetaData.title;
-        let nft_img = "";
-        if (nftMetaData.media.length > 0) {
-          nft_img = nftMetaData.media[0].gateway;
-        } else {
-          nft_img = nftMetaData.tokenUri.gateway;
-        }
-        nftData.imgLink = nft_img;
-        nftData.name = nftMetaData.contract.name;
-        parsedListings[index] = nftData;
-        this.setState({ parsedListings: parsedListings });
-        this.forceUpdate();
-      });
-    } else {
+    if (accounts.length == 0) {
       this.setState({
         TradingContract: null,
         NFTContract: null,
@@ -161,9 +99,89 @@ export class PersonalListing extends React.Component {
         isApproved: false,
         parsedListings: null,
         isLoading: false,
+        web3Provider: web3Provider,
       });
       this.forceUpdate();
+      return;
     }
+
+    const signer = await web3Provider.getSigner();
+    const NFT_Contract = new ethers.Contract(
+      NFTContractAddress,
+      nftABI,
+      signer
+    );
+    const TradingContract = new ethers.Contract(
+      TradingContractAddress,
+      tradingABI,
+      signer
+    );
+    const isApproved = await NFT_Contract.isApprovedForAll(
+      signer.address,
+      TradingContractAddress
+    );
+    if (!isApproved) {
+      this.setState({
+        isLoading: false,
+        web3Provider: web3Provider,
+      });
+      this.forceUpdate();
+      return;
+    }
+    const ownedNFTs = await alchemy.nft.getNftsForOwner(signer.address);
+
+    const amountToWithdraw = await TradingContract.getWithdrawableAmount();
+    this.setState({
+      ownedNFTs: ownedNFTs,
+      isApproved: isApproved,
+      TradingContract: TradingContract,
+      NFTContract: NFT_Contract,
+      amountToWithdraw: amountToWithdraw,
+      isLoading: false,
+      web3Provider: web3Provider,
+    });
+    this.forceUpdate();
+
+    const listedNFTs = await TradingContract.getPersonalListings();
+    if (listedNFTs.length == 0) {
+      return;
+    }
+
+    let parsedListingsContract = listedNFTs.map((listing) => {
+      return {
+        id: Number(listing.id),
+        price: Number(listing.price),
+        nftAddress: listing.nftAddress,
+        tokenID: Number(listing.tokenID),
+        owner: listing.owner,
+        exists: listing.exists,
+      };
+    });
+    parsedListingsContract = parsedListingsContract.filter(
+      (item) => item.exists
+    );
+    let parsedListings = [...parsedListingsContract];
+    await parsedListings.map(async (listedNFT, index) => {
+      const nftMetaData = await alchemy.nft.getNftMetadata(
+        listedNFT.nftAddress,
+        listedNFT.tokenID.toString(),
+        "ERC721"
+      );
+      let nftData = parsedListings[index];
+      nftData.description = nftMetaData.description;
+      nftData.title = nftMetaData.title;
+      let nft_img = "";
+      if (nftMetaData.media.length > 0) {
+        nft_img = nftMetaData.media[0].gateway;
+      } else {
+        nft_img = nftMetaData.tokenUri.gateway;
+      }
+      nftData.imgLink = nft_img;
+      nftData.name = nftMetaData.contract.name;
+      parsedListings[index] = nftData;
+      this.setState({ parsedListings: parsedListings });
+      this.forceUpdate();
+    });
   }
 
   async handleCancelItem(listingID) {
@@ -203,6 +221,7 @@ export class PersonalListing extends React.Component {
     await this.loadPersonalListings();
   }
   async handleListItem() {
+    document.body.style.overflow = "unset";
     const TradingContract = this.state.TradingContract;
     try {
       const tx = await TradingContract.listItem(
@@ -268,7 +287,8 @@ export class PersonalListing extends React.Component {
     this.setState({ modalVisible: "", modalPrice: "" });
   }
   async handleApprove() {
-    const signer = await web3Provider.getSigner();
+    console.log(this.state.web3Provider);
+    const signer = await this.state.web3Provider.getSigner();
     const NFT_Contract = new ethers.Contract(
       NFTContractAddress,
       nftABI,
@@ -354,16 +374,17 @@ export class PersonalListing extends React.Component {
   async handleRevokeAccess() {
     const TradingContract = this.state.TradingContract;
     const listedNFTs = await TradingContract.getPersonalListings();
-    if (listedNFTs.length != 0) {
-      this.setState({
-        MessageVisible: true,
-        MessageType: ErrorMessageType,
-        Message:
-          "In order to disable the access you need to delist all your NFTs first!",
-      });
-      return;
-    }
-
+    listedNFTs.forEach((listedNFT) => {
+      if (listedNFT.exists) {
+        this.setState({
+          MessageVisible: true,
+          MessageType: ErrorMessageType,
+          Message:
+            "In order to disable the access you need to delist all your NFTs first!",
+        });
+        return;
+      }
+    });
     const NFT_Contract = this.state.NFTContract;
     try {
       const tx = await NFT_Contract.setApprovalForAll(
@@ -381,6 +402,7 @@ export class PersonalListing extends React.Component {
         Message: "No longer approved!",
         MessageType: SuccessMessageType,
       });
+      await this.loadPersonalListings();
     } catch (error) {
       if (error.message.includes("revert")) {
         this.setState({
@@ -402,7 +424,6 @@ export class PersonalListing extends React.Component {
   render() {
     const { parsedListings, ownedNFTs, isApproved, isLoading } = this.state;
     if (isLoading) {
-      console.log("Loading...");
       return (
         <div className="prose p-4">
           <h1>Loading personal listings...</h1>

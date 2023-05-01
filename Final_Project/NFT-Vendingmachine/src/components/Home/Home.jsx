@@ -17,7 +17,8 @@ export default function Home() {
         This is my first React project I've build on my own without following a
         tutorial!
       </p>
-      <h2>Ressources:</h2>
+      <p>This app is currently only deployed on the Sepolia Network!</p>
+      <h2 className="mb-0">Ressources:</h2>
       <ul>
         <li className="list-none">Vite and React</li>
         <li className="list-none">Daisy UI and Tailwind CSS for Styling</li>

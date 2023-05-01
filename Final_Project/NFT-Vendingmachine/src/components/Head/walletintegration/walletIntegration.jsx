@@ -1,38 +1,42 @@
 import { ethers } from "ethers";
 export default function walletIntegration({ ...props }) {
   async function handleConnectWallet() {
-    if (window.ethereum) {
-      const web3Provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await web3Provider.send("eth_accounts");
-      if (accounts.length > 0) {
-        const signer = await web3Provider.getSigner();
-        const address = signer.address;
-        const formattedAddress = `${address.substring(
-          0,
-          4
-        )}...${address.substring(address.length - 5, address.length)}`;
-        props.SetWalletState(formattedAddress);
-        props.SetWalletConnected(true);
-        props.SetSigner(signer);
-      } else {
-        const signer = await web3Provider.getSigner();
-        const address = signer.address;
-        const formattedAddress = `${address.substring(
-          0,
-          4
-        )}...${address.substring(address.length - 5, address.length)}`;
-        props.SetWalletState(formattedAddress);
-        props.SetWalletConnected(true);
-        props.SetSigner(signer);
-      }
-    } else {
+    if (!window.ethereum) {
       props.setErrorMessage("You need to install Metamask!");
       props.ErrorMessageSetVisible(true);
+      return;
+    }
+
+    const web3Provider = new ethers.BrowserProvider(window.ethereum);
+    const accounts = await web3Provider.send("eth_accounts");
+    if (accounts.length > 0) {
+      const signer = await web3Provider.getSigner();
+      const address = signer.address;
+      const formattedAddress = `${address.substring(
+        0,
+        4
+      )}...${address.substring(address.length - 5, address.length)}`;
+      props.SetWalletState(formattedAddress);
+      props.SetWalletConnected(true);
+      props.SetSigner(signer);
+    } else {
+      const signer = await web3Provider.getSigner();
+      const address = signer.address;
+      const formattedAddress = `${address.substring(
+        0,
+        4
+      )}...${address.substring(address.length - 5, address.length)}`;
+      props.SetWalletState(formattedAddress);
+      props.SetWalletConnected(true);
+      props.SetSigner(signer);
     }
   }
-  window.ethereum.on("accountsChanged", async () => {
-    await handleConnectWallet(); //TODO
-  });
+  if (window.ethereum) {
+    window.ethereum.on("accountsChanged", async () => {
+      await handleConnectWallet();
+    });
+  }
+
   return (
     <>
       <button

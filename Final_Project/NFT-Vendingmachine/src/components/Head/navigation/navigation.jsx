@@ -8,7 +8,9 @@ import NotFound from "../../NotFound/NotFound";
 import NFT_Metadata from "../../Listing/DisplayDetails";
 import { GiSnowBottle } from "react-icons/gi";
 export default function navigation({ ...props }) {
-  window.ethereum.on("chainChanged", (chainId) => window.location.reload());
+  if (window.ethereum) {
+    window.ethereum.on("chainChanged", (chainId) => window.location.reload());
+  }
   return (
     <>
       <nav className="navbar bg-neutral p-4 min-h-fit">
@@ -68,7 +70,7 @@ export default function navigation({ ...props }) {
         <Route path="/Vendingmachine" element={<Vendingmachine />} />
         <Route path="/Listings" element={<Listings Signer={props.Signer} />} />
         <Route path="/PersonalListing" element={<PersonalListing />} />
-        <Route path="*" element={<NotFound />} />
+        <Route path="/*" element={<NotFound />} />
         <Route
           path="/NFT_Details/:address/:tokenID"
           element={<NFT_Metadata />}

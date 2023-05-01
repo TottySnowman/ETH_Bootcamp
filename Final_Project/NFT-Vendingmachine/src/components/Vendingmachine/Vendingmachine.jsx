@@ -9,7 +9,6 @@ import { VendingmachineAddress } from "../../constants/ContractAddresses";
 import Message from "../Messages/Message";
 import UpdatePrice from "./UpdatePrice";
 import RestockSoda from "./Restock";
-const web3Provider = new ethers.BrowserProvider(window.ethereum);
 export class Vendingmachine extends React.Component {
   constructor() {
     super();
@@ -24,6 +23,8 @@ export class Vendingmachine extends React.Component {
       isOwner: false,
       withdrawableAmount: 0,
       VendingmachineContract: null,
+      web3Provider: null,
+      isLoading: true,
     };
     this.handleBuySoda = this.handleBuySoda.bind(this);
     this.getVendingmachineDetails = this.getVendingmachineDetails.bind(this);
@@ -31,9 +32,12 @@ export class Vendingmachine extends React.Component {
     this.handleWithdraw = this.handleWithdraw.bind(this);
     this.handleShowMessage = this.handleShowMessage.bind(this);
     this.handleAccountsChanged = this.handleAccountsChanged.bind(this);
+    this.resetState = this.resetState.bind(this);
   }
   async componentDidMount() {
-    window.ethereum.on("accountsChanged", this.handleAccountsChanged);
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", this.handleAccountsChanged);
+    }
 
     try {
       await this.getVendingmachineDetails();
@@ -49,6 +53,10 @@ export class Vendingmachine extends React.Component {
     }
   }
   async handleAccountsChanged() {
+    this.resetState();
+    await this.getVendingmachineDetails();
+  }
+  resetState() {
     this.setState({
       price: 0,
       left: 0,
@@ -60,10 +68,18 @@ export class Vendingmachine extends React.Component {
       isOwner: false,
       withdrawableAmount: 0,
       VendingmachineContract: null,
+      web3Provider: null,
+      isLoading: true,
     });
-    await this.getVendingmachineDetails();
+    this.forceUpdate();
   }
   async getVendingmachineDetails() {
+    if (!window.ethereum) {
+      this.resetState();
+      this.setState({ isLoading: false });
+      return;
+    }
+    const web3Provider = new ethers.BrowserProvider(window.ethereum);
     const accounts = await web3Provider.send("eth_accounts");
     let VendingmachineContract;
     if (accounts.length > 0) {
@@ -93,26 +109,31 @@ export class Vendingmachine extends React.Component {
       );
     }
 
-    let n = {
+    let new_state = {
       price: ethers
         .formatEther(await VendingmachineContract.soda_price())
         .toString(),
       left: (await VendingmachineContract.soda_amount()).toString(),
       sold: (await VendingmachineContract.sold_sodas()).toString(),
+      web3Provider: web3Provider,
+      isLoading: false,
     };
 
     try {
-      n.self_minted = (await VendingmachineContract.getMySodas()).toString();
+      new_state.self_minted = (
+        await VendingmachineContract.getMySodas()
+      ).toString();
     } catch (error) {
       if (error.message.includes("revert")) {
-        n.self_minted = error.message.split('"')[1].trim();
+        new_state.self_minted = error.message.split('"')[1].trim();
       }
     }
-    this.setState(n);
+    this.setState(new_state);
   }
 
   async handleWithdraw() {
-    const signer = await web3Provider.getSigner();
+    const signer = await this.state.web3Provider.getSigner();
+
     let VendingmachineContract = new ethers.Contract(
       VendingmachineAddress,
       abi,
@@ -151,8 +172,8 @@ export class Vendingmachine extends React.Component {
     }
   }
   async handleBuySoda() {
-    await web3Provider.send("eth_requestAccounts", []);
-    const signer = await web3Provider.getSigner();
+    await this.state.web3Provider.send("eth_requestAccounts", []);
+    const signer = await this.state.web3Provider.getSigner();
     let VendingmachineContract = new ethers.Contract(
       VendingmachineAddress,
       abi,
@@ -210,7 +231,14 @@ export class Vendingmachine extends React.Component {
     });
   }
   render() {
-    const { price, isOwner } = this.state;
+    const { isLoading, isOwner, price } = this.state;
+    if (isLoading) {
+      return (
+        <div className="prose p-4">
+          <h1>Loading Vendingmachine data...</h1>
+        </div>
+      );
+    }
     return (
       <div className="prose p-4">
         {price ? (
@@ -259,7 +287,11 @@ export class Vendingmachine extends React.Component {
             )}
           </>
         ) : (
-          <h1>Loading Vendingmachine data...</h1>
+          <div className="border rounded border-primary">
+            <h2 className="m-0 p-4">
+              Whoops seems like Metamask is not connected!
+            </h2>
+          </div>
         )}
         <Message
           MessageVisible={this.state.MessageVisible}

@@ -2,8 +2,9 @@ import { useEffect } from "react";
 import {
   SuccessMessageType,
   ErrorMessageType,
+  WariningMessageType,
 } from "../../constants/MessageTypes";
-export default function SuccessMessage({ ...props }) {
+export default function Message({ ...props }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       props.handleResetMessage();
@@ -37,12 +38,12 @@ export default function SuccessMessage({ ...props }) {
     );
   } else if (props.MessageType == ErrorMessageType) {
     return (
-      <div className="p-4 justify-center items-center h-2">
-        <div
-          className={`alert alert-error shadow-lg w-64 h-32 ${
-            props.MessageVisible ? "fixed  inset-0" : "hidden"
-          }`}
-        >
+      <div
+        className={`flex p-4 justify-center items-center h-screen ${
+          props.MessageVisible ? "fixed inset-0" : "hidden"
+        }`}
+      >
+        <div className={`max-w-md alert alert-error shadow-lg`}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="stroke-current flex-shrink-0 h-6 w-6"

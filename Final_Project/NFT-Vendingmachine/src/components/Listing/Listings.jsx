@@ -18,6 +18,8 @@ export class Listings extends React.Component {
     this.handleResetMessage = this.handleResetMessage.bind(this);
     this.parseListings = this.parseListings.bind(this);
     this.handleAccountsChanged = this.handleAccountsChanged.bind(this);
+    this.resetState = this.resetState.bind(this);
+
     this.state = {
       MessageVisible: false,
       MessageType: "",
@@ -25,13 +27,20 @@ export class Listings extends React.Component {
       parsedListings: null,
       TradingContract: null,
       accountConnected: false,
+      web3Provider: null,
     };
   }
   async componentDidMount() {
     await this.parseListings();
-    window.ethereum.on("accountsChanged", this.handleAccountsChanged);
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", this.handleAccountsChanged);
+    }
   }
   handleAccountsChanged = async () => {
+    this.resetState();
+    await this.parseListings();
+  };
+  resetState() {
     this.setState({
       MessageVisible: false,
       MessageType: "",
@@ -39,10 +48,15 @@ export class Listings extends React.Component {
       parsedListings: null,
       TradingContract: null,
       accountConnected: false,
+      web3Provider: null,
     });
-    await this.parseListings();
-  };
+    this.forceUpdate();
+  }
   async parseListings() {
+    if (!window.ethereum) {
+      this.resetState();
+      return; //todo error
+    }
     const web3Provider = new ethers.BrowserProvider(window.ethereum);
     const accounts = await web3Provider.send("eth_accounts");
     let TradingContract;
@@ -53,6 +67,7 @@ export class Listings extends React.Component {
         tradingABI,
         signer
       );
+      this.setState({ accountConnected: true });
     } else {
       TradingContract = new ethers.Contract(
         TradingContractAddress,
@@ -60,7 +75,10 @@ export class Listings extends React.Component {
         web3Provider
       );
     }
-    this.setState({ TradingContract: TradingContract, accountConnected: true });
+    this.setState({
+      TradingContract: TradingContract,
+      web3Provider: web3Provider,
+    });
 
     const allListedNFTs = await TradingContract.getAllListings();
     if (allListedNFTs.length == 0) {
